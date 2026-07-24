@@ -14,25 +14,24 @@ Solves Project Euler #43 — finding permutations of digits where overlapping 3-
 
 **Highlights:** Heap's algorithm for permutation generation, substring-based divisibility checks, efficient exhaustive search over the full permutation space.
 
+### [Contacts](./Contacts)
+Solves the HackerRank Data Structures "Contacts" problem — a trie-based lookup supporting prefix counting and whole-word search over a set of contact names.
+
+**Highlights:** trie (prefix tree) construction, O(prefix length) prefix-count queries, shared sentinel node for end-of-word marking.
+
 ## Getting Started
 
-Each project folder contains its own source file, `README.md` with details, and (for LargeSum) a set of test cases. Build both projects from the repository root:
+Build all projects from the repository root:
 
 ```bash
 make all
 ```
 
-This produces:
-```
-LargeSum/largesum
-SubstringDivisibility/substringdivisibility
-```
-
-Run either binary directly, passing the relevant input:
-
+Or build a single project on its own:
 ```bash
-./LargeSum/largesum path/to/input.txt
-./SubstringDivisibility/substringdivisibility 0123456789
+make largesum
+make subdiv
+make contacts
 ```
 
 To remove built binaries:
@@ -42,7 +41,6 @@ make clean
 
 ## Skills Demonstrated
 
-- Manual implementation of algorithms typically hidden behind language built-ins (big-integer arithmetic, permutation generation)
+- Manual implementation of algorithms typically hidden behind language built-ins (big-integer arithmetic, permutation generation, trie-based prefix search)
 - Efficient exhaustive search techniques
 - C++ fundamentals: file I/O, vectors, careful edge-case handling
-- Build automation with Makefiles across a multi-project repository

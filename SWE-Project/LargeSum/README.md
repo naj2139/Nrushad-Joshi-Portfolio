@@ -34,13 +34,17 @@ First 10 digits: 1578092114
 
 ## Usage
 
-Build with the included `Makefile`:
+Build everything with the included `Makefile`:
 ```bash
 make all
+```
+
+Or build just this project:
+```bash
+make largesum
 ```
 
 Run against an input file:
 ```bash
 ./LargeSum/largesum path/to/input.txt
 ```
-

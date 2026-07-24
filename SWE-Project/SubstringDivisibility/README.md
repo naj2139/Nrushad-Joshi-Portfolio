@@ -44,12 +44,14 @@ Sum: 16695334890
 - **General input size** — works for any digit-string length from 4 to 10, not just the full 10-digit pandigital case, adjusting which divisibility rules apply based on the input length.
 
 ## Usage
-
-Build with the included `Makefile`:
+Build everything with the included `Makefile`:
 ```bash
 make all
 ```
-
+Or build just this project:
+```bash
+make subdiv
+```
 Run against a digit string:
 ```bash
 ./SubstringDivisibility/substringdivisibility 0123456789
