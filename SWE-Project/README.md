@@ -5,7 +5,7 @@ A collection of C++ programming projects focused on algorithmic problem-solving,
 ## Projects
 
 ### [LargeSum](./LargeSum)
-Implements arbitrary-precision integer addition from scratch, summing large non-negative integers (up to 50 digits each) that exceed the range of native integer types. Built around manual digit-by-digit arithmetic with explicit carry propagation.
+Solves Project Euler #13 — implements arbitrary-precision integer addition from scratch, summing large non-negative integers (up to 50 digits each) that exceed the range of native integer types. Built around manual digit-by-digit arithmetic with explicit carry propagation.
 
 **Highlights:** custom big-integer arithmetic, no arbitrary-precision libraries, edge-case handling (empty input, leading zeros, short sums).
 
