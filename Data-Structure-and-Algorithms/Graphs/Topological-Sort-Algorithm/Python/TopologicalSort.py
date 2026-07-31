@@ -11,10 +11,9 @@ that every prerequisite appears before the course that depends on it.
 # 2. Remove each such node from the graph and decrease the indegree of its adjacent vertices by 1
 # 3. If any adjacent vertex's indegree becomes 0, add it to the queue/list of nodes to process
 # 4. Repeat steps 1–3 until every node has been processed (indegree reduced to 0)
-# 5. The order in which nodes were removed (added to the result) is the topologically sorted order
+# 5. The order in which nodes were removed is the topologically sorted order
 
-from typing import List, Tuple, Dict
-
+from typing import List, Tuple
 
 def topological_sort(vertex: List[str], edges: List[Tuple[str, str]]) -> List[str]:
     """
