@@ -171,3 +171,57 @@ def count_digits(n: int) -> int:
     # Number of digits =
     # current digit + number of remaining digits.
     return 1 + count_digits(remainder)
+
+# Key recursion concept:
+# ----------------------
+# Assume the recursive call already knows how to convert the remaining
+# (larger place values) into binary, then append the current binary digit.
+#
+# Recursion expansion (13):
+#
+# int_to_binary(13)
+# = int_to_binary(6) + "1"
+# = (int_to_binary(3) + "0") + "1"
+# = ((int_to_binary(1) + "1") + "0") + "1"
+# = (("1") + "1") + "0" + "1"
+# = "1101"
+
+def int_to_binary(n: int) -> str:
+
+    # Split the number into:
+    # - last_digit: current binary digit (0 or 1)
+    # - remainder: remaining value to convert
+    last_digit = n % 2
+    remainder = n // 2
+
+    # Base case: only one binary digit remains.
+    if remainder == 0:
+        return str(last_digit)
+
+    # Binary representation =
+    # binary representation of the remaining value
+    # followed by the current binary digit.
+    return int_to_binary(remainder) + str(last_digit)
+
+if __name__ == "__main__":
+
+    print("print_numbers(5):")
+    print_numbers(5)
+
+    print("\nsum_numbers(5):")
+    print(sum_numbers(5))
+
+    print("\nfactorial(5):")
+    print(factorial(5))
+
+    print('\nreverse_string("Hello"):')
+    print(reverse_string("Hello"))
+
+    print("\ndigit_sum(1234):")
+    print(digit_sum(1234))
+
+    print("\ncount_digits(12345):")
+    print(count_digits(12345))
+
+    print("\nint_to_binary(13):")
+    print(int_to_binary(13))
