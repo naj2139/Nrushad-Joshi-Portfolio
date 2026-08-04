@@ -171,9 +171,4 @@ class DFSIterative:
                 # Right subtree is done (or doesn't exist), so NOW
                 # we can finally print this node and pop it for real.
                 print(peek.val)
-                last_visited = stack.pop()
-            
-            
-
-
-            
+                last_visited = stack.pop()            

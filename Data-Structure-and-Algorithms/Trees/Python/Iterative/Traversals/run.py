@@ -1,5 +1,4 @@
 from TreeNode import TreeNode
-from DFS_Recursive import DFSRecursive
 from DFS_Iterative import DFSIterative
 
 
@@ -63,28 +62,19 @@ def main():
 
     root = build_example_tree()
 
-    recursive = DFSRecursive()
     iterative = DFSIterative()
 
-    # print("Recursive Preorder")
-    # print("------------------")
-    # recursive.preorder(root)
-
-    # print("\nRecursive Inorder")
-    # print("-----------------")
-    # recursive.inorder(root)
-
-    # print("\nRecursive Postorder")
-    # print("-------------------")
-    # recursive.postorder(root)
-
-    # print("\nIterative Preorder")
-    # print("------------------")
-    # iterative.preorder(root)
+    print("\nIterative Preorder")
+    print("------------------")
+    iterative.preorder(root)
 
     print("\nRecursive Inorder")
     print("-----------------")
     iterative.inorder(root)
+
+    print("\nIterative Postorder")
+    print("------------------")
+    iterative.postorder(root)
 
 
 if __name__ == "__main__":
