@@ -101,18 +101,27 @@ class DFSIterative:
     # 3
 
     def inorder(self, root: TreeNode) -> None:
-        stack = [root]
+        stack = []
+        curr = root
 
-        while stack:
-            
+        while curr or stack:
+            # Go as far left as possible, pushing each node we pass
+            # onto the stack so we can come back to it later.
+            while curr:
+                stack.append(curr)
+                curr = curr.left
+
+            # No more left children to explore — pop the most recent
+            # node we stacked. This is the next node in sorted/inorder order.
             node = stack.pop()
-            if node.right:
-                stack.append(node.right)
-
             print(node.val)
 
-            if node.left:
-                stack.append(node.left)
+            # Now explore that node's right subtree the same way.
+            # If there's no right child, curr becomes None, the inner
+            # while loop is skipped, and we just pop the next parent
+            # off the stack instead.
+            curr = node.right
+
 
     # ----------------------------------------------------------
     # Postorder Traversal
@@ -140,4 +149,31 @@ class DFSIterative:
     # 2
 
     def postorder(self, root: TreeNode) -> None:
-        pass
+        stack = []
+        curr = root
+        last_visited = None
+
+        while curr or stack:
+            # Same as inorder: go all the way left, pushing as we go.
+            while curr:
+                stack.append(curr)
+                curr = curr.left
+
+            # Peek (don't pop yet) at the top of the stack.
+            peek = stack[-1]
+
+            # If there's an unvisited right child, we have to go explore
+            # it before we're allowed to print this node — that's the
+            # key difference from inorder.
+            if peek.right and last_visited != peek.right:
+                curr = peek.right
+            else:
+                # Right subtree is done (or doesn't exist), so NOW
+                # we can finally print this node and pop it for real.
+                print(peek.val)
+                last_visited = stack.pop()
+            
+            
+
+
+            
