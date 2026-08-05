@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 class TreeNode:
     """
     Basic binary tree node.
@@ -5,13 +8,13 @@ class TreeNode:
 
     def __init__(self, val: int):
         self.val = val
-        self.left = None
-        self.right = None
+        self.left: TreeNode | None = None
+        self.right: TreeNode | None = None
 
 
 def build_example_tree() -> TreeNode:
     """
-    Construct the example binary tree used throughout the project.
+    Construct the example binary tree.
 
                                 50
                          /               \
@@ -65,20 +68,78 @@ def build_example_tree() -> TreeNode:
     return root
 
 
-class Algorithm:
+class Traversal:
+    """
+    Recursive binary tree traversal algorithms.
+    """
 
-    def traversal(self, root):
-        if not root:
+    def preorder(self, root: TreeNode | None) -> None:
+        """
+        Traverse the tree in Root -> Left -> Right order.
+        """
+
+        # Base case: reached the end of a branch.
+        if root is None:
             return
-        print(root.val)
-        self.traversal(root.left)
-        self.traversal(root.right)
 
-def main():
+        # Process the current node.
+        print(root.val)
+
+        # Traverse the left subtree.
+        self.preorder(root.left)
+
+        # Traverse the right subtree.
+        self.preorder(root.right)
+
+    def inorder(self, root: TreeNode | None) -> None:
+        """
+        Traverse the tree in Left -> Root -> Right order.
+        """
+
+        # Base case: reached the end of a branch.
+        if root is None:
+            return
+
+        # Traverse the left subtree.
+        self.inorder(root.left)
+
+        # Process the current node.
+        print(root.val)
+
+        # Traverse the right subtree.
+        self.inorder(root.right)
+
+    def postorder(self, root: TreeNode | None) -> None:
+        """
+        Traverse the tree in Left -> Right -> Root order.
+        """
+
+        # Base case: reached the end of a branch.
+        if root is None:
+            return
+
+        # Traverse the left subtree.
+        self.postorder(root.left)
+
+        # Traverse the right subtree.
+        self.postorder(root.right)
+
+        # Process the current node.
+        print(root.val)
+
+
+def main() -> None:
     root = build_example_tree()
-    solver = Algorithm()
-    result = solver.traversal(root)
-    print(result)
+    traversal = Traversal()
+
+    print("Preorder Traversal:")
+    traversal.preorder(root)
+
+    print("\nInorder Traversal:")
+    traversal.inorder(root)
+
+    print("\nPostorder Traversal:")
+    traversal.postorder(root)
 
 
 if __name__ == "__main__":
