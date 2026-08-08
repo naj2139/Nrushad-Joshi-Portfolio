@@ -122,10 +122,7 @@ def is_balanced(root: TreeNode | None) -> bool:
         # As soon as one of them is true, we know the answer -- False --
         # so we stop and return right away instead of checking the rest.
  
-        if left_balanced == False:
-            return (height, False)
- 
-        if right_balanced == False:
+        if left_balanced == False or right_balanced == False:
             return (height, False)
  
         if abs(left_height - right_height) > 1:
