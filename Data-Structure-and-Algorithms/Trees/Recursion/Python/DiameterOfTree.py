@@ -13,7 +13,7 @@ class TreeNode:
 
 
 def build_example_tree() -> TreeNode:
-    """
+    r"""
     Construct a tree where the diameter passes through the root.
 
             A
@@ -33,7 +33,7 @@ def build_example_tree() -> TreeNode:
 
 
 def build_off_root_example_tree() -> TreeNode:
-    """
+    r"""
     Construct a tree where the diameter does NOT pass through the root.
 
             A
@@ -41,12 +41,10 @@ def build_off_root_example_tree() -> TreeNode:
           B
          / \
         D   E
-       /     \
-      F       H
-     /         \
-    (F, G)      I
-
-    (D has children F and G; E has child H; H has child I)
+       / \   \
+      F   G   H
+               \
+                I
     """
     root = TreeNode("A")
     root.left = TreeNode("B")
@@ -54,7 +52,7 @@ def build_off_root_example_tree() -> TreeNode:
     root.left.left.left, root.left.left.right = TreeNode("F"), TreeNode("G")
     root.left.right.right = TreeNode("H")
     root.left.right.right.right = TreeNode("I")
-
+    
     return root
 
 
@@ -80,27 +78,47 @@ def diameter_of_tree(root: TreeNode | None) -> int:
     of the longest path anywhere in the tree, as a number of edges.
     """
 
+    # Approach:
+    #   A single post-order traversal computes both a height and a
+    #   running "best diameter so far" at the same time, so the tree
+    #   only needs to be walked once (O(n)), instead of recomputing
+    #   height from scratch at every node (which would be O(n^2)).
+    #
+    #   `res` is a running maximum shared across every recursive call.
+    #   A one-element list (`res = [0]`) is used instead of a plain
+    #   int because the nested helper needs to MUTATE it on every
+    #   improvement -- Python closures can freely READ an outer
+    #   variable, but reassigning a plain int from inside a nested
+    #   function requires declaring it `nonlocal` first. Mutating
+    #   res[0] in place sidesteps that entirely, since the list
+    #   object itself is never reassigned, only the value at index 0.
+
     res = [0]
-
-    def diameter_of_tree_helper(root: TreeNode | None):
-        global res
-
-        if not root:
+    def diameter_of_tree_helper(node: TreeNode | None) -> int:
+        # Base case: an empty subtree has height 0 and contributes
+        # no path.
+        if not node:
             return 0
-
-        left = 1 + diameter_of_tree_helper(root.left)
-        right = 1 + diameter_of_tree_helper(root.right)
-
-        height = max(left, right)
-
+        # Recurse on both children first (post-order / bottom-up) --
+        # each call already folds in every candidate found deeper in
+        # that subtree, via its own recursive calls to res[0].
+        left = diameter_of_tree_helper(node.left)
+        right = diameter_of_tree_helper(node.right)
+        # This node's height: one more than the taller of its two
+        # children. This is the only thing returned up to the
+        # parent -- diameter itself never gets returned, only
+        # accumulated in res.
+        height = 1 + max(left, right)
+        # The longest path THROUGH this node = left + right.
+        # left/right already represent how many edges each side
+        # reaches down, so summing them gives the total edge count
+        # of the path that enters this node from one side and exits
+        # out the other. Update the running best if this beats it.
         if left + right > res[0]:
             res[0] = left + right
-
         return height
-
-    height = diameter_of_tree_helper(root)
-    print(res[0])
-    return height
+    diameter_of_tree_helper(root)
+    return res[0]
 
 
 def main() -> None:
