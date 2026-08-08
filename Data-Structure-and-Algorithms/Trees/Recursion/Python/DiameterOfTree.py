@@ -79,7 +79,28 @@ def diameter_of_tree(root: TreeNode | None) -> int:
     Given the root of a tree, this function should return the length
     of the longest path anywhere in the tree, as a number of edges.
     """
-    pass
+
+    res = [0]
+
+    def diameter_of_tree_helper(root: TreeNode | None):
+        global res
+
+        if not root:
+            return 0
+
+        left = 1 + diameter_of_tree_helper(root.left)
+        right = 1 + diameter_of_tree_helper(root.right)
+
+        height = max(left, right)
+
+        if left + right > res[0]:
+            res[0] = left + right
+
+        return height
+
+    height = diameter_of_tree_helper(root)
+    print(res[0])
+    return height
 
 
 def main() -> None:
