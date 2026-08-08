@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 class TreeNode:
     """
     Basic binary tree node.
@@ -52,7 +51,7 @@ def build_off_root_example_tree() -> TreeNode:
     root.left.left.left, root.left.left.right = TreeNode("F"), TreeNode("G")
     root.left.right.right = TreeNode("H")
     root.left.right.right.right = TreeNode("I")
-    
+
     return root
 
 
