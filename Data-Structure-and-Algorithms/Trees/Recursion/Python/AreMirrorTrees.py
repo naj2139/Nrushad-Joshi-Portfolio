@@ -1,15 +1,3 @@
-"""
-mirror_trees.py
-
-Check whether two binary trees are mirror images of one another.
-
-A tree `root2` is the mirror of `root1` if, at every level, the
-left/right children are swapped: root1.left mirrors root2.right,
-and root1.right mirrors root2.left.
-
-Author: Nrushad Joshi
-"""
-
 from __future__ import annotations
 
 
