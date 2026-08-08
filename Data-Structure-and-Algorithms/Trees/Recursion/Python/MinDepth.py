@@ -62,7 +62,6 @@ def min_depth(root: TreeNode | None) -> int:
 
     The minimum depth is the number of nodes along the shortest
     path from the root to the nearest leaf node.
-
     """
 
     # Empty tree has depth 0.

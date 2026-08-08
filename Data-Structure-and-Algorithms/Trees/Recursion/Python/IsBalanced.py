@@ -97,9 +97,6 @@ def is_balanced(root: TreeNode | None) -> bool:
            short-circuit evaluation ("or" stops at the first True
            operand), since the tree is already known unbalanced
            regardless of what this node's own heights look like.
- 
-    Time complexity:  O(n) -- each node is visited exactly once.
-    Space complexity: O(h) -- recursion stack depth equals tree height.
     """
  
     def is_balanced_helper(node: TreeNode | None) -> tuple[int, bool]:
@@ -117,7 +114,6 @@ def is_balanced(root: TreeNode | None) -> bool:
         #   2. the right side already had a problem somewhere inside it
         #   3. right here, at this node, the two sides' heights are
         #      too far apart (more than 1)
-        #
         # Check each condition one at a time, in plain if/else form.
         # As soon as one of them is true, we know the answer -- False --
         # so we stop and return right away instead of checking the rest.
