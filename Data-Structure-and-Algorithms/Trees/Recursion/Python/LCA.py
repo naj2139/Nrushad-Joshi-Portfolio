@@ -60,10 +60,85 @@ def lowest_common_ancestor(
     other, that ancestor node IS the LCA.
 
     Given the root of a tree and two target nodes p and q (both
-    guaranteed to exist somewhere in the tree), this function should
-    return the TreeNode that is their lowest common ancestor.
+    guaranteed to exist somewhere in the tree), returns the TreeNode
+    that is their lowest common ancestor.
+
+    Approach:
+        Each recursive call reports upward whether p or q was found
+        anywhere in its subtree (True/False). Landing on p or q
+        directly reports True immediately, without needing to search
+        further down -- this correctly handles the case where one
+        target is itself an ancestor of the other.
+
+        At any node, if BOTH its left and right recursive calls
+        report True, one target was found on each side -- this node
+        is the fork point where their paths diverge, so it's the LCA.
+        That signal is then passed further up unchanged, so ancestors
+        above the fork don't mistake themselves for the answer too.
+
+    Time complexity:  O(n) -- each node is visited at most once.
+    Space complexity: O(h) -- recursion stack depth equals tree height.
     """
-    pass
+
+# =============================================================================
+# My First Attempt
+# =============================================================================
+    # def lowest_common_ancestor(root, p, q):
+    #     track = []
+    #     res = []
+    #     def lca_helper(root):
+    #         if not root:
+    #             return None
+    #         if root.val == p.val or root.val == q.val:
+    #             return True
+    #         track.append(root.val)
+    #         left = lca_helper(root.left)
+    #         right = lca_helper(root.right)
+    #         if left and right:
+    #             res.append(root)
+    #         if left or right:
+    #             track.pop(-1)
+    #             return True
+    #         else:
+    #             track.pop(-1)
+    #             return None
+    #     lca_helper(root)
+    #     return res[0]
+    #
+    # Cleanup below: `track` was built up and popped but never
+    # actually read anywhere, so it's dropped entirely. Comparing
+    # `node is p or node is q` (identity) is used instead of
+    # `root.val == p.val or root.val == q.val` (value equality) --
+    # p and q are already the exact TreeNode objects being searched
+    # for, so checking identity is both more direct and avoids any
+    # ambiguity if two different nodes happened to share a value.
+
+    lca: list[TreeNode | None] = [None]
+
+    def lca_helper(node: TreeNode | None) -> bool:
+        if not node:
+            return False
+
+        # Landing directly on a target reports "found" immediately,
+        # without needing to search that node's own children -- this
+        # correctly handles "one target is an ancestor of the other."
+        if node is p or node is q:
+            return True
+
+        found_left = lca_helper(node.left)
+        found_right = lca_helper(node.right)
+
+        # Both sides reported a target found -- this is the fork
+        # point where p and q's paths diverge, so it's the LCA.
+        if found_left and found_right:
+            lca[0] = node
+
+        # Pass the "found something" signal upward either way.
+        return found_left or found_right
+
+    lca_helper(root)
+    return lca[0]
+
 
 def main() -> None:
     root = build_example_tree()
