@@ -51,8 +51,7 @@ class Solution:
                     if edge[0] in visited:
                         continue
 
-                    x = traversal(edge[0], visited, path)
-                    if not x:
+                    if not traversal(edge[0], visited, path):
                         return False
 
             # Backtrack: this course is no longer on the ACTIVE path,
