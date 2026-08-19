@@ -1,4 +1,4 @@
-# Course Prerequisite Scheduler (Topological Sort)
+# Topological Sort
 
 A Python implementation of **Kahn's Algorithm** for topological sorting, modeled around a real-world use case: determining a valid order to take courses given their prerequisite relationships.
 
