@@ -1,9 +1,3 @@
-# LeetCode 912: Sort an Array (Merge Sort)
-#
-# Divide and conquer: split the array in half, recursively sort each half,
-# then merge the two sorted halves back together.
-# Recurrence: T(n) = 2T(n/2) + O(n)  ->  O(n log n)  (Master theorem)
-
 from typing import List
 
 

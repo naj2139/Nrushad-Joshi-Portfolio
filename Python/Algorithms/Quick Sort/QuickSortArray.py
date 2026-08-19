@@ -1,20 +1,9 @@
-# LeetCode 912: Sort an Array (Quicksort)
-#
-# Pick a pivot, partition the array so smaller elements end up left of it
-# and larger elements end up right of it (the pivot lands in its final
-# sorted position), then recursively sort both sides. Unlike Merge sort,
-# there's no separate merge step -- the partitioning IS the sorting work.
-#
-# Average case: O(n log n)
-# Worst case:   O(n^2)  -- see why below.
-
 from typing import List
 from random import randint
 
 
 class Solution:
     def sort(self, nums: List[int]):
-        # --- First attempt (correct, but has a real worst case) ---
         # Always picking the LAST element as the pivot works fine on
         # random data, but on already-sorted (or reverse-sorted) input,
         # the largest (or smallest) element is always at the end -- so

@@ -1,5 +1,3 @@
-# LeetCode 147: Insertion Sort List
-
 from typing import Optional
 
 

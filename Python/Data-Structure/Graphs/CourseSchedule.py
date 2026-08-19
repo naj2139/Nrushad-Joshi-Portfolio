@@ -1,15 +1,4 @@
-"""Course Schedule (LeetCode 207) — graph cycle detection.
-
-There are a total of numCourses courses you have to take, labeled
-from 0 to numCourses - 1. You are given an array prerequisites where
-prerequisites[i] = [a, b] indicates that you must take course b
-first if you want to take course a.
-
-Return True if you can finish all courses. Otherwise, return False.
-"""
-
 from __future__ import annotations
-
 
 class Solution:
     def canFinish(self, numCourses: int, prerequisites: list[list[int]]) -> bool:

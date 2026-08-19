@@ -1,8 +1,3 @@
-# LeetCode 912: Sort an Array (practicing with Insertion Sort)
-#
-# Note: insertion sort is O(n^2), so this won't pass LeetCode's judge at full
-# scale (n up to 5*10^4) -- use this as local practice for the shifting logic.
-
 from typing import List
 
 
