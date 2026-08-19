@@ -1,11 +1,3 @@
-# LeetCode 215: Kth Largest Element in an Array (Quickselect)
-#
-# Same partition step as Quicksort -- pick a pivot, rearrange so smaller
-# elements land left and larger elements land right, pivot ends up in its
-# final sorted position. The difference: only recurse into the ONE side
-# that contains the answer, instead of both. That's what drops the
-# average time from O(n log n) down to O(n).
-
 from typing import List
 import random
 
