@@ -7,8 +7,9 @@ This project implements an element-wise ReLU (`out[i] = max(in[i], 0)`) kernel i
 - **PyCUDA:** high-level `gpuarray` vs explicit `mem_alloc` / `memcpy`
 - **PyOpenCL:** `pyopencl.array` vs raw `cl.Buffer` / `enqueue_copy`
 
-Kernel-only and end-to-end times are measured separately. The GPU kernel outperforms NumPy for large inputs: from N ≈ 10⁵ in PyCUDA, and at every tested size in PyOpenCL. End-to-end, though, NumPy is faster at every tested size, because moving data to and from the GPU takes most of the time. End-to-end time reaches up to 117× the kernel-only time.
+Kernel-only and end-to-end times are measured separately. The GPU kernel outperforms NumPy for large inputs: from N ≈ 10⁵ in PyCUDA, and at every tested size in PyOpenCL. End-to-end, though, NumPy is faster at every tested size, because moving data to and from the GPU takes most of the time.
 
+The full analysis is in the [report](report.pdf). It covers synchronization, the trade-offs between high-level arrays and explicit memory management, and scaling limits.
 
 ## Experimental setup
 
