@@ -7,9 +7,8 @@ This project implements an element-wise ReLU (`out[i] = max(in[i], 0)`) kernel i
 - **PyCUDA:** high-level `gpuarray` vs explicit `mem_alloc` / `memcpy`
 - **PyOpenCL:** `pyopencl.array` vs raw `cl.Buffer` / `enqueue_copy`
 
-Kernel-only and end-to-end times are measured separately. The GPU kernel outperforms NumPy for large inputs: from N ≈ 10⁵ in PyCUDA, and at every tested size in PyOpenCL. Host–device data transfer and allocation overheads dominate end-to-end runtime, though, so NumPy remains faster end-to-end across the entire tested range. End-to-end time reaches up to 117× the kernel-only time.
+Kernel-only and end-to-end times are measured separately. The GPU kernel outperforms NumPy for large inputs: from N ≈ 10⁵ in PyCUDA, and at every tested size in PyOpenCL. End-to-end, though, NumPy is faster at every tested size, because moving data to and from the GPU takes most of the time. End-to-end time reaches up to 117× the kernel-only time.
 
-The full analysis is in the [report](report.pdf). It covers synchronization, the trade-offs between high-level arrays and explicit memory management, and scaling limits.
 
 ## Experimental setup
 
@@ -20,6 +19,32 @@ The full analysis is in the [report](report.pdf). It covers synchronization, the
 | OS | Ubuntu 22.04 LTS |
 | Disk | 50 GB persistent |
 | Zone | us-east4-b |
+
+### Software stack
+
+| Component | Version / details |
+|---|---|
+| CUDA Toolkit | 12.6.1 (includes `nvcc`, Nsight Systems `nsys`, Nsight Compute `ncu`) |
+| NVIDIA driver | 560.35.03 (bundled with the CUDA 12.6.1 runfile installer) |
+| Compiler | GCC 12, matched to the GCC version used to build the VM's Linux kernel |
+| Python | Python 3 in an isolated `venv` |
+| GPU libraries | `pycuda`, `pyopencl` (OpenCL via the NVIDIA CUDA platform) |
+| Python packages | `numpy`, `matplotlib` |
+
+### Environment setup
+
+1. Install build essentials (`build-essential`, `dkms`). Make sure the system GCC matches the kernel's GCC (check with `cat /proc/version`).
+2. Install CUDA Toolkit 12.6.1 with NVIDIA's runfile installer. Verify the driver with `nvidia-smi`.
+3. Add `/usr/local/cuda-12.6/bin` to `PATH` and the CUDA `lib` directory to `LD_LIBRARY_PATH`. Confirm with `nvcc --version`.
+4. Enable non-admin profiler access by setting `NVreg_RestrictProfilingToAdminUsers=0` in `/etc/modprobe.d/`, then reboot.
+5. Create and activate a virtual environment, then install the dependencies:
+   ```bash
+   python3 -m venv cuda_cl && source cuda_cl/bin/activate
+   pip install numpy matplotlib pycuda pyopencl
+   ```
+6. Confirm both runtimes can see the GPU. Query `cuda.Device(0).name()` in PyCUDA and list the devices under `cl.get_platforms()` in PyOpenCL.
+
+### Benchmark methodology
 
 - **Input sizes:** N = 10¹ to 10⁸, float32, each time averaged over 10 runs.
 - **PyCUDA timing:** CUDA events for both kernel-only and end-to-end time.
