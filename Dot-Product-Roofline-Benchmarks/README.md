@@ -66,6 +66,8 @@ The full analysis is in the [report](report.pdf). It covers warm-up exclusion an
 | C4 | Python loop | 1.554e-01 | 0.051 | 0.013 | 1,000,000 |
 | C5 | NumPy | 1.35e-04 | 59.358 | 14.840 | 1,000,000 |
 
+![images](roofline_1M.png)
+
 ### N = 300,000,000
 
 | Benchmark | Implementation | Time (s) | Bandwidth (GB/s) | GFLOP/s | R |
@@ -76,7 +78,7 @@ The full analysis is in the [report](report.pdf). It covers warm-up exclusion an
 | C4 | Python loop | 4.798e+01 | 0.050 | 0.013 | 300,000,000 |
 | C5 | NumPy | 9.455e-02 | 25.384 | 6.346 | 300,000,000 |
 
-![Roofline](roofline.png)
+![images](roofline_300M.png)
 
 ## Attribution
 
