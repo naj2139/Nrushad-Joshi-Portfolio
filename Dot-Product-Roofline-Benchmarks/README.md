@@ -17,7 +17,7 @@ The full analysis is in the [report](report.pdf). It covers warm-up exclusion an
 
 | Item | Value |
 |---|---|
-| CPU | _fill in from `lscpu`_ |
+| CPU | x86-64, E2 platform |
 | Machine type | GCP e2-standard-8 (8 vCPUs, 32 GB RAM) |
 | OS | Debian 12 (bookworm) |
 | Disk | 50 GB balanced persistent disk |
