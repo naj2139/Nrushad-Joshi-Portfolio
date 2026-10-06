@@ -35,4 +35,4 @@ make clean
 - C++ fundamentals: file I/O, vectors, careful edge-case handling
 
 ## Attribution
-These projects were completed as part of COMS W4137: From Algorithmic Thinking to Development at Columbia University, taught by Brian Borowski. I developed the code with the assistance of ChatGPT and Claude.
+These projects were completed as part of COMS W4137: From Algorithmic Thinking to Development at Columbia University, taught by Dr. Brian Borowski. I developed the code with the assistance of ChatGPT and Claude.
