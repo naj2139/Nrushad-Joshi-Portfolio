@@ -81,8 +81,7 @@ The full analysis is in the [report](report.pdf). It covers warm-up exclusion an
 ![images](images/roofline_300M.png)
 
 ## Attribution
-
-This work was completed as a homework assignment for COMS 6998: High Performance Machine Learning at Columbia University, taught by Dr. Kaoutar El Maghraoui. The dot-product function bodies (`dp`, `dpunroll`, `bdp`) and the output format were specified by the assignment. The benchmark harnesses, build setup, and plotting code were developed by the author. This report was written with the assistance of AI; all experimental results were produced and verified by the author.
+This work was completed as part of COMS 6998: High Performance Machine Learning at Columbia University, taught by Dr. Kaoutar El Maghraoui. The assignment provided the dot-product function bodies (`dp` and `dpunroll` in C, `bdp` using MKL's `cblas_sdot`, and `dp` in Python), the NumPy array initialization, and the required output format. The benchmark harnesses, timing code, build setup, and plotting code were developed by me with the assistance of ChatGPT and Claude. I also used these tools to review my code, understand concepts such as floating-point precision and the roofline model, generate the report, and edit the writing. All benchmarks were run by me, and all results are from my own measurements.
 
 ---
 
