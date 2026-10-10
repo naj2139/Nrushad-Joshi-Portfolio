@@ -87,7 +87,7 @@ The full analysis is in the [report](report.pdf). It covers synchronization, the
 
 ## Attribution
 
-This work was completed as a homework assignment for EECS E4750: Heterogeneous Computing for Signal and Data Processing at Columbia University, taught by Prof. Zoran Kosti\'c. The assignment template, test harness, benchmarking code and the OpenCL kernel were provided by the course. The CUDA kernel and all host code were developed by the author. This report was written with the assistance of AI; all experimental results were produced and verified by the author.
+This work was completed as a homework assignment for EECS E4750: Heterogeneous Computing for Signal and Data Processing at Columbia University, taught by Prof. Zoran Kosti\'c. The assignment template, test harness, benchmarking code, and the OpenCL kernel were provided by the course. The CUDA kernel and all host code were developed by the author. This report was written with the assistance of AI; all experimental results were produced and verified by the author.
 
 ---
 
