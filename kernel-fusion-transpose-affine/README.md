@@ -125,6 +125,16 @@ Nsight Compute (SM clock locked at base frequency during profiling):
 | Global load efficiency | – | – | 70.8% |
 | Memory throughput (GB/s) | – | – | 80.48 |
 
+Global load and store efficiency come from `smsp__sass_average_data_bytes_per_sector_mem_global_op_{ld,st}`. Nsight Compute reports the average number of useful bytes per 32-byte sector (`.ratio`) and the maximum possible (`.max_rate` = 32), so efficiency = `.ratio` / `.max_rate`:
+
+| Kernel | Store `.ratio` | Store efficiency | Load `.ratio` | Load efficiency |
+|---|---|---|---|---|
+| Transpose | 4 | 4 / 32 = 12.5% | 32 | 100% |
+| Affine | 32 | 32 / 32 = 100% | 32 | 100% |
+| Fused | 4 | 4 / 32 = 12.5% | 22.67 | 22.67 / 32 = 70.8% |
+
+The fused kernel's load ratio of 22.67 is a weighted average over all its global loads. Per warp, the read from `X` moves 128 bytes in 4 sectors, while `gamma[c]` and `beta[c]` each move 4 bytes in a full sector: 136 bytes / 6 sectors = 22.67 bytes per sector.
+
 ## Attribution
 
 This work was completed as a homework assignment for EECS E4750: Heterogeneous Computing for Signal and Data Processing at Columbia University, taught by Prof. Zoran Kostić. The assignment template, test harness, and benchmarking code were provided by the course. The CUDA and OpenCL kernels and all host code were developed by the author. This report was written with the assistance of AI; all experimental results were produced and verified by the author.
