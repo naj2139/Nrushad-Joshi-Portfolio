@@ -1,148 +1,123 @@
-# Profiling and Accelerating DistilBERT Fine-Tuning in PyTorch
+# Kernel Fusion on the GPU: Layout Conversion + Per-Channel Affine
 
 ## Abstract
-This project fine-tunes DistilBERT on IMDB sentiment classification with a hand-written PyTorch training loop, then profiles the training step and tries the standard levers for speeding it up. It covers:
-- **A custom training loop:** truncating tokenization, a dynamic-padding `collate_fn`, and a minimal forward/backward/step loop
-- **Phase-level timing:** data, forward, backward, and optimizer time per step, with `torch.cuda.synchronize()` so asynchronous GPU work is attributed to the right phase
-- **Input pipeline tuning:** a `num_workers` sweep, and pinned memory with `non_blocking` host-to-device copies
-- **Bottleneck diagnosis:** a PyTorch Profiler trace plus a batch-size scaling test to classify the step as launch-bound, compute-bound, or input-bound
-- **Compilation:** graph-break detection and removal, and the `torch.compile` speedup and break-even step count
-- **Mixed precision and optimizers:** fp16 autocast with `GradScaler`, and SGD vs. Adam vs. AdamW on time, convergence, and memory
-
-All code, outputs, and the full analysis are in the [notebook](distilbert_profiling.ipynb).
+This project implements a fused layout conversion and per-channel affine transform (`Y[n, c] = gamma[c] * X[c, n] + beta[c]`) in both CUDA (via PyCUDA) and OpenCL (via PyOpenCL). It converts a channel-major `(C, N)` tensor to batch-major `(N, C)` while applying a folded BatchNorm scale and shift.
+Three implementations are compared against a NumPy CPU baseline:
+- **Host round trip:** Two kernels (transpose, then affine), with the intermediate copied back to the host and up again in between.
+- **Unfused:** The same two kernels, with the intermediate kept in device global memory.
+- **Fused:** One kernel, with no intermediate array.
+Kernel-only and end-to-end times are measured separately, and the PyCUDA versions are profiled with Nsight Systems and Nsight Compute.
+Fusion cuts kernel time by 1.62× at large N and halves DRAM traffic (138 MB vs. 264 MB measured, against 134 MB vs. 268 MB predicted). End-to-end, though, host transfers dominate: they account for over 95% of the total, so the fused and unfused versions finish within about 1% of each other, and only the PyCUDA versions catch up with NumPy at N = 10⁶. Profiling also shows that fusion does not fix the transpose's strided store, which runs at 12.5% global store efficiency in both the transpose and fused kernels.
+The full analysis is in the [report](report.pdf). It covers launch structure, the launch-overhead crossover, predicted vs. measured DRAM bytes, warp-level coalescing, and the aspect-ratio sweep.
 
 ## Experimental Setup
 | Item | Value |
 |---|---|
-| Platform | Google Colab |
-| GPU | NVIDIA Tesla T4 (Turing, compute capability 7.5, 40 SMs, 15.6 GB) |
-| CPU | 2 vCPUs |
+| GPU | 1× NVIDIA L4 (Ada Lovelace, 24 GB GDDR6, 300 GB/s peak) |
 
 ### Software Stack
 | Component | Version / Details |
 |---|---|
-| CUDA Runtime / Driver API | 13.0 / 13.0 (CUPTI 13.0.1) |
-| Python | 3.13 |
-| PyTorch | 2.11.0+cu130 |
-| transformers | 4.46.3 |
-| datasets | 3.1.0 |
-| accelerate | 1.1.1 |
+| CUDA Toolkit | 12.6.1 (includes `nvcc`) |
+| NVIDIA Driver | 560.35.03 (bundled with the CUDA 12.6.1 runfile installer) |
+| Profilers | Nsight Systems 2024.4.2.133, Nsight Compute 2024.3.1.0 |
+| Python | Python 3.10 in an isolated `venv` |
+| GPU Libraries | `pycuda`, `pyopencl` (OpenCL via the NVIDIA CUDA platform) |
+| Python Packages | `numpy`, `matplotlib` |
 
 ### Environment Setup
-1. Open the notebook in Google Colab and select a T4 GPU runtime (Runtime → Change runtime type). It also runs on any CUDA machine, or on CPU with the GPU experiments skipped.
-2. Install the pinned Hugging Face libraries (PyTorch comes preinstalled on Colab):
+1. Install build essentials (`build-essential`, `dkms`). Make sure the system GCC matches the kernel's GCC (check with `cat /proc/version`).
+2. Install CUDA Toolkit 12.6.1 with NVIDIA's runfile installer. Verify the driver with `nvidia-smi`.
+3. Add `/usr/local/cuda-12.6/bin` to `PATH` and the CUDA `lib` directory to `LD_LIBRARY_PATH`. Confirm with `nvcc --version`.
+4. Enable profiler access to the GPU performance counters. Either set `NVreg_RestrictProfilingToAdminUsers=0` in `/etc/modprobe.d/` and reboot, or run Nsight Compute through `sudo env "PATH=$PATH" "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" ncu ...`.
+5. Create and activate a virtual environment, then install the dependencies:
    ```bash
-   pip install transformers==4.46.3 datasets==3.1.0 accelerate==1.1.1 matplotlib
+   python3 -m venv cuda_cl && source cuda_cl/bin/activate
+   pip install numpy matplotlib pycuda pyopencl
    ```
-3. Run all cells. The tokenizer and the 300-row IMDB sample (`data/tiny_imdb.jsonl`) are downloaded on first run if they are not present locally.
-4. The profiler trace is written to `traces/hw2_c4_trace.json`. Open it in [Perfetto](https://ui.perfetto.dev) or `chrome://tracing`.
-
-### Models and Data
-- **Tiny model:** a randomly initialized DistilBERT with 2 layers, hidden size 32, 4 heads, and 999,074 parameters. It shares the `distilbert-base-uncased` vocabulary (30,522 tokens) and is used for the timing, profiling, and compile experiments.
-- **Full model:** pretrained `distilbert-base-uncased` (66,955,010 parameters), used for fine-tuning, mixed precision, and the optimizer comparison.
-- **Data:** the first 2,000 reviews of the IMDB training split for the GPU experiments, plus a balanced 300-row sample for quick checks.
+6. Confirm both runtimes can see the GPU. Query `cuda.Device(0).name()` in PyCUDA and list the devices under `cl.get_platforms()` in PyOpenCL.
+Nsight Compute 2024.3 supports Volta and newer GPUs only, so Pascal cards such as the Tesla P4 cannot be profiled with it.
 
 ### Benchmark Methodology
-- **Timing:** `time.perf_counter()` with `torch.cuda.synchronize()` before every timestamp. Averages are taken after 2–3 warm-up steps.
-- **Profiling:** `torch.profiler` with CPU and CUDA activities over 3 training steps, with `forward`, `backward`, and `optimizer` regions labeled via `record_function`.
-- **Graph breaks:** counted with `torch._dynamo.explain`.
-- **Memory:** `torch.cuda.max_memory_allocated()` after `reset_peak_memory_stats()`, over 5 steps per configuration.
+- **Benchmark sweep:** C = 128, N = 10¹ to 10⁶, float32, each time averaged over 5 runs.
+- **Aspect-ratio sweep:** C·N fixed at 2²⁴ (64 MiB per array), C = 32 to 32,768, averaged over 5 runs.
+- **Block size:** 32 × 32 for every kernel. The transpose and fused kernels map `n` to `threadIdx.x`; the affine kernel maps `c` to `threadIdx.x`.
+- **PyCUDA timing:** CUDA events for both kernel-only and end-to-end time.
+- **PyOpenCL timing:** OpenCL event profiling for kernel time and `time.time()` for end-to-end time.
+- **End-to-end:** Includes device allocation, host-to-device copies, kernel(s), and device-to-host copy.
+- **Profiling:** Nsight Systems over C = 256 with N = 256, 4,096, 65,536 and 1,048,576 in one capture; Nsight Compute on the three kernels at C = 256, N = 65,536.
+- **Correctness:** Checked against NumPy with `np.allclose(rtol=1e-5, atol=1e-6)` for edge cases, including C or N = 1, dimensions that are not multiples of 32 (37 × 53, 33 × 1,025), both extreme aspect ratios, scale-only and shift-only parameters, and a 128 × 100,000 input.
 
 ## Results
-### Fine-Tuning (Pretrained DistilBERT, AdamW lr = 5e-5, Batch 32, max_len 256)
-| Metric | Value |
+### Benchmark Sweep, PyCUDA (Seconds, C = 128)
+| N | Host Round Trip Kernel | Host Round Trip Total | Unfused Kernel | Unfused Total | Fused Kernel | Fused Total | CPU |
+|---|---|---|---|---|---|---|---|
+| 10¹ | 1.200e-04 | 5.049e-04 | 4.813e-05 | 3.007e-04 | 2.888e-05 | 2.460e-04 | 3.371e-05 |
+| 10² | 6.614e-05 | 4.364e-04 | 5.448e-05 | 3.217e-04 | 3.092e-05 | 2.897e-04 | 5.050e-05 |
+| 10³ | 5.342e-05 | 9.070e-04 | 5.714e-05 | 5.395e-04 | 4.137e-05 | 5.598e-04 | 2.440e-04 |
+| 10⁴ | 1.261e-04 | 6.403e-03 | 1.468e-04 | 3.249e-03 | 1.028e-04 | 2.867e-03 | 1.487e-03 |
+| 10⁵ | 1.053e-03 | 7.061e-02 | 1.078e-03 | 3.575e-02 | 6.930e-04 | 3.582e-02 | 3.579e-02 |
+| 10⁶ | 1.028e-02 | 6.610e-01 | 1.029e-02 | 3.406e-01 | 6.349e-03 | 3.370e-01 | 3.547e-01 |
+
+![PyCUDA benchmark](results/bench_cuda.png)
+
+### Benchmark Sweep, PyOpenCL (Seconds, C = 128)
+| N | Host Round Trip Kernel | Host Round Trip Total | Unfused Kernel | Unfused Total | Fused Kernel | Fused Total | CPU |
+|---|---|---|---|---|---|---|---|
+| 10¹ | 2.024e-05 | 1.872e-03 | 1.619e-05 | 9.901e-04 | 8.192e-06 | 5.939e-04 | 2.704e-05 |
+| 10² | 1.659e-05 | 1.033e-03 | 1.696e-05 | 9.436e-04 | 8.806e-06 | 5.805e-04 | 4.973e-05 |
+| 10³ | 2.007e-05 | 1.656e-03 | 2.028e-05 | 1.215e-03 | 1.534e-05 | 9.113e-04 | 2.433e-04 |
+| 10⁴ | 8.786e-05 | 8.208e-03 | 8.600e-05 | 4.139e-03 | 7.558e-05 | 3.611e-03 | 1.878e-03 |
+| 10⁵ | 1.032e-03 | 1.516e-01 | 1.033e-03 | 7.630e-02 | 6.427e-04 | 7.599e-02 | 3.707e-02 |
+| 10⁶ | 1.022e-02 | 1.432e+00 | 1.023e-02 | 7.200e-01 | 6.303e-03 | 7.179e-01 | 3.553e-01 |
+
+![PyOpenCL benchmark](results/bench_opencl.png)
+
+### Aspect-Ratio Sweep (C·N = 2²⁴)
+| C | N | PyCUDA Unfused Kernel | PyCUDA Fused Kernel | PyCUDA Unfused Total | PyCUDA Fused Total | PyOpenCL Unfused Kernel | PyOpenCL Fused Kernel | PyOpenCL Unfused Total | PyOpenCL Fused Total |
+|---|---|---|---|---|---|---|---|---|---|
+| 32 | 524,288 | 1.486e-03 | 8.757e-04 | 4.712e-02 | 4.512e-02 | 1.343e-03 | 8.200e-04 | 1.017e-01 | 9.835e-02 |
+| 128 | 131,072 | 1.401e-03 | 8.933e-04 | 4.605e-02 | 4.628e-02 | 1.356e-03 | 8.379e-04 | 9.938e-02 | 9.881e-02 |
+| 512 | 32,768 | 1.397e-03 | 8.827e-04 | 4.642e-02 | 4.540e-02 | 1.349e-03 | 8.303e-04 | 9.919e-02 | 9.781e-02 |
+| 2,048 | 8,192 | 1.411e-03 | 8.987e-04 | 4.580e-02 | 4.620e-02 | 1.359e-03 | 8.407e-04 | 9.831e-02 | 9.763e-02 |
+| 8,192 | 2,048 | 1.424e-03 | 9.314e-04 | 4.701e-02 | 4.521e-02 | 1.381e-03 | 8.653e-04 | 9.938e-02 | 9.836e-02 |
+| 32,768 | 512 | 1.467e-03 | 9.468e-04 | 4.616e-02 | 4.631e-02 | 1.402e-03 | 8.860e-04 | 9.974e-02 | 9.902e-02 |
+
+| PyCUDA | PyOpenCL |
 |---|---|
-| Steps Run | 50 (≈0.8 epoch over 2,000 reviews) |
-| Final Step Training Loss | 0.0013 |
-| Training Accuracy (full pass over the 2,000 rows, eval mode) | 1.0000 |
+| ![PyCUDA aspect-ratio sweep](results/ratio_cuda.png) | ![PyOpenCL aspect-ratio sweep](results/ratio_opencl.png) |
 
-### Per-Step Timing Breakdown (Tiny Model, Batch 8 × 64)
-| Phase | Time (ms) | Share of Total |
-|---|---|---|
-| Data (H2D Copy) | 0.23 | 2% |
-| Forward (+ Loss) | 5.27 | 38% |
-| Backward | 4.84 | 35% |
-| Optimizer (zero_grad + step) | 3.24 | 24% |
-| **Total** | **13.70** | 100% |
-
-This was the model's first step, so the optimizer time includes AdamW lazily allocating its state. The trace shows 88 kernels for that first `AdamW.step` versus 8 in later steps. Without a sync before each timestamp, each phase would be charged only for queuing its kernels, and the real GPU time would be billed to the next blocking call (`loss.item()`).
-
-![Training-step breakdown](results/step_breakdown.png)
-
-### Input Pipeline (2,000 Rows, Batch 16, 125 Steps per Epoch)
-| num_workers | Epoch Time (s) |
-|---|---|
-| 0 | 3.51 |
-| **2** | **3.19** (best, −9%) |
-| 4 | 3.46 |
-| 8 | 3.76 |
-
-The curve is U-shaped. Two workers move tokenization off the main process. Four or more workers oversubscribe the 2 vCPUs and compete with the main process, which is itself busy launching kernels. Pinned memory with `non_blocking=True` copies made no measurable difference (3.46 s → 3.50 s at 4 workers): the trace shows all H2D copies over 3 steps totaling 0.029 ms of GPU time, so there is nothing to overlap.
-
-![num_workers sweep](results/num_workers_sweep.png)
-
-### Bottleneck Diagnosis: Launch-Bound
-| Batch Size | Step Time (ms) |
-|---|---|
-| 8 | 9.63 |
-| 16 | 8.40 |
-| 32 | 8.60 |
-| 64 | 8.73 |
-
-![Batch scaling](results/batch_scaling.png)
-
-**Steady-State Step from the Profiler Trace**
-| Region | CPU Time | Kernels | GPU Kernel Time |
+### Profiling, PyCUDA (C = 256, N = 65,536)
+**Nsight Systems**
+| Version | Kernel Launches | Total Memcpy (ms) | Kernel Time (ms) |
 |---|---|---|---|
-| Forward | 6.59 ms | 43 | 0.43 ms |
-| Backward | 9.50 ms | 98 | 1.08 ms |
-| Optimizer (AdamW.step) | 1.82 ms | 8 | 0.49 ms |
+| Host Round Trip | 2 | 81.89 | 1.244 |
+| Unfused | 2 | 41.39 | 1.333 |
+| Fused | 1 | 42.22 | 0.818 |
 
-- **Flat batch scaling:** step time doesn't grow with batch size, so the cost is fixed per-step overhead (Python dispatch and kernel launches), not compute.
-- **Idle GPU:** 527 kernels run for 6.2 ms inside a 69 ms window, about 9% GPU occupancy.
-- **Launch cost exceeds kernel time:** the median kernel lasts 7.6 µs, and the `cudaLaunchKernel` calls take 7.5 ms of CPU time, more than the GPU work they launch.
+The dispatch gap between the two kernels in `unfused()` is 5.7 µs.
 
-The first fix to try is cutting kernel launches with `torch.compile(mode="reduce-overhead")`, which fuses small kernels and replays the step as a CUDA graph.
+**Nsight Compute (SM clock locked at base frequency during profiling)**
+| Metric | Transpose | Affine | Fused |
+|---|---|---|---|
+| Duration (ms) | 1.71 | 0.50 | 1.72 |
+| DRAM Read (bytes) | 80,685,312 | 73,943,808 | 80,753,152 |
+| DRAM Write (bytes) | 57,306,112 | 52,368,384 | 57,339,776 |
+| Global Store Efficiency | 12.5% | 100% | 12.5% |
+| Global Load Efficiency | – | – | 70.8% |
+| Memory Throughput (GB/s) | – | – | 80.48 |
 
-### Graph Breaks
-| Function | Graph Breaks |
-|---|---|
-| `if x.sum() > 0: return x.sin()` else `x.cos()` | 1 |
-| `torch.where(x.sum() > 0, x.sin(), x.cos())` | **0** |
-
-The Python `if` on a tensor value forces Dynamo to stop tracing, evaluate the condition eagerly (a device-to-host read on GPU), and start a new graph. The branchless rewrite keeps the condition as a tensor, so the whole function compiles to one graph at the cost of always computing both branches.
-
-### `torch.compile` (Tiny Model, Batch 8 × 64, Default Mode)
-| Metric | Value |
-|---|---|
-| Eager Step | 8.77 ms |
-| Compiled Step | 6.78 ms (1.29× faster) |
-| Per-Step Saving | 1.99 ms |
-| One-Time Compile Cost | 0.66 s |
-| **Break-Even** | 0.66 s / 1.99 ms ≈ **330 steps** |
-
-The gain is modest because the step is launch-bound: default-mode Inductor fuses elementwise ops into fewer kernels, but each remaining kernel is still launched from the CPU, and the optimizer step stays eager.
-
-### Mixed Precision (Pretrained DistilBERT, Batch 32 × up to 256 Tokens)
-| Precision | Peak Allocated |
-|---|---|
-| fp32 | 5,604 MB |
-| AMP (fp16 autocast + GradScaler) | 5,119 MB |
-| **Change** | **−485 MB (−8.7%)** |
-
-Only the activations saved for backward shrink. The fp32 master weights (~268 MB), gradients (~268 MB), and AdamW state (~536 MB) are unchanged. Autocast runs the matmul-heavy ops (Q/K/V and output projections, FFN linears, attention batched matmuls) in fp16 on the T4's Tensor Cores and keeps softmax, LayerNorm, and the loss in fp32.
-
-### Optimizers (Pretrained DistilBERT, lr = 5e-5, Batch 32, 20 Steps)
-| Optimizer | 20-Step Time | Final Loss | State (Bytes/Param) | State for DistilBERT |
+Global load and store efficiency come from `smsp__sass_average_data_bytes_per_sector_mem_global_op_{ld,st}`. Nsight Compute reports the average number of useful bytes per 32-byte sector (`.ratio`) and the maximum possible (`.max_rate` = 32), so efficiency = `.ratio` / `.max_rate`:
+| Kernel | Store `.ratio` | Store Efficiency | Load `.ratio` | Load Efficiency |
 |---|---|---|---|---|
-| SGD (no momentum) | 16.59 s | 0.7050 | 0 | 0 MB |
-| Adam | 18.15 s | 0.0056 | 8 | ≈536 MB |
-| AdamW | 16.75 s | 0.0049 | 8 | ≈536 MB |
+| Transpose | 4 | 4 / 32 = 12.5% | 32 | 100% |
+| Affine | 32 | 32 / 32 = 100% | 32 | 100% |
+| Fused | 4 | 4 / 32 = 12.5% | 22.67 | 22.67 / 32 = 70.8% |
 
-Step times are within noise of each other, since the update is small next to the forward and backward passes. Convergence is what separates them: SGD's loss stays at ≈ ln 2 (chance) because 5e-5 is far too small a step without adaptive per-parameter scaling. AdamW reaches the 0.1 target loss fastest at the same memory cost as Adam.
+The fused kernel's load ratio of 22.67 is a weighted average over all its global loads. Per warp, the read from `X` moves 128 bytes in 4 sectors, while `gamma[c]` and `beta[c]` each move 4 bytes in a full sector: 136 bytes / 6 sectors = 22.67 bytes per sector.
 
 ## Attribution
-This work was completed as a homework assignment for COMS 6998: High Performance Machine Learning at Columbia University, taught by Dr. Kaoutar El Maghraoui. The notebook template, tiny model configuration, dataset wrapper, and parts of the benchmark harness were provided by the course. The tokenization and collate functions, training step, timing, profiling, mixed-precision, and optimizer functions, the graph-break fix, and all experiments were developed and run by the author. AI assistants (Claude) were used to help debug code, explain concepts, and draft and edit the written analysis; all results are from the author's own measurements.
+This work was completed as a homework assignment for EECS E4750: Heterogeneous Computing for Signal and Data Processing at Columbia University, taught by Prof. Zoran Kostić. The assignment template, test harness, and benchmarking code were provided by the course. The CUDA and OpenCL kernels and all host code were developed by the author. This report was written with the assistance of AI; all experimental results were produced and verified by the author.
 
 ---
 **Nrushad Joshi, Columbia University**
