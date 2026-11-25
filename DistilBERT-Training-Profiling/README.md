@@ -11,8 +11,6 @@ This project fine-tunes DistilBERT on IMDB sentiment classification with a hand-
 - **Compilation:** graph-break detection and removal, and the `torch.compile` speedup and break-even step count
 - **Mixed precision and optimizers:** fp16 autocast with `GradScaler`, and SGD vs. Adam vs. AdamW on time, convergence, and memory
 
-The small-model training step turns out to be **launch-bound**. An 8× larger batch leaves step time flat at ~8.5 ms, the GPU is idle about 90% of the time, and the CPU spends more time launching the 527 kernels in three steps (7.5 ms) than the GPU spends running them (6.2 ms). That diagnosis explains the rest of the results. Extra `DataLoader` workers help by at most 9%, pinned memory does nothing measurable, and default-mode `torch.compile` gives a 1.29× speedup that takes about 330 steps to pay back its compile cost. On the full 67M-parameter model, mixed precision lowers peak memory by 8.7%, since only saved activations shrink, and Adam/AdamW converge within 20 steps while SGD at the same learning rate barely moves.
-
 All code, outputs, and the full analysis are in the [notebook](distilbert_profiling.ipynb).
 
 ## Experimental setup
